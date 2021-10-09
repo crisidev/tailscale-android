@@ -221,6 +221,7 @@ func main() {
 	}
 	a.store = newStateStore(a.jvm, a.appCtx)
 	interfaces.RegisterInterfaceGetter(a.getInterfaces)
+
 	go func() {
 		if err := a.runBackend(); err != nil {
 			fatalErr(err)
@@ -256,7 +257,8 @@ func (a *App) runBackend() error {
 	}
 	configs := make(chan configPair)
 	configErrs := make(chan error)
-	b, err := newBackend(appDir, a.jvm, a.store, func(rcfg *router.Config, dcfg *dns.OSConfig) error {
+	b, err := newBackend(appDir, a.jvm, a.appCtx, a.store, func(rcfg *router.Config,
+		dcfg *dns.OSConfig) error {
 		if rcfg == nil {
 			return nil
 		}
