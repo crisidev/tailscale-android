@@ -871,8 +871,13 @@ func (a *App) runUI() error {
 			ui.runningExit = p.AdvertisesExitNode()
 			ui.exitLAN.Value = p.ExitNodeAllowLANAccess
 			w.Invalidate()
-		case state.browseURL = <-a.browseURLs:
+		case url := <-a.browseURLs:
 			ui.signinType = noSignin
+			if a.isTV() {
+				ui.ShowQRCode(url)
+			} else {
+				state.browseURL = url
+			}
 			w.Invalidate()
 			a.updateState(activity, state)
 		case newState := <-a.netStates:
@@ -948,6 +953,21 @@ func (a *App) runUI() error {
 	}
 }
 
+func (a *App) isTV() bool {
+	var istv bool
+	err := jni.Do(a.jvm, func(env *jni.Env) error {
+		cls := jni.GetObjectClass(env, a.appCtx)
+		m := jni.GetMethodID(env, cls, "isTV", "()Z")
+		b, err := jni.CallBooleanMethod(env, a.appCtx, m)
+		istv = b
+		return err
+	})
+	if err != nil {
+		fatalErr(err)
+	}
+	return istv
+}
+
 // isReleaseSigned reports whether the app is signed with a release
 // signature.
 func (a *App) isReleaseSigned() bool {
@@ -1004,7 +1024,7 @@ func (a *App) updateState(act jni.Object, state *clientState) {
 	for _, p := range peers {
 		if q := state.query; q != "" {
 			// Filter peers according to search query.
-			host := strings.ToLower(p.Hostinfo.Hostname)
+			host := strings.ToLower(p.Hostinfo.Hostname())
 			name := strings.ToLower(p.Name)
 			var addr string
 			if len(p.Addresses) > 0 {
